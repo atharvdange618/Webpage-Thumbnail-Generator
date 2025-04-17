@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Thumbnail Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Webpage Thumbnail Generator</h1>
+      <div class="input-group">
+        <input type="url" id="urlInput" placeholder="Enter page URL…" />
+        <button id="generateBtn">Generate</button>
+      </div>
+      <div id="previewArea" class="preview hidden">
+        <h2>Preview</h2>
+        <img id="thumbImg" alt="Thumbnail preview" />
+        <a id="downloadLink" download="thumbnail.png">Download</a>
+      </div>
+      <div id="errorMsg" class="error hidden"></div>
+    </div>
+    <script src="script.js"></script>
+  </body>
+</html>
