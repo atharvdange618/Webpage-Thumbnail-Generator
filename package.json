@@ -5,7 +5,8 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js"
+    "start": "node index.js",
+    "postinstall": "node node_modules/puppeteer/install.js"
   },
   "keywords": [],
   "author": "",
@@ -15,7 +16,9 @@
     "chalk": "^4.1.2",
     "express": "^5.1.0",
     "open-graph-scraper": "^6.9.0",
-    "puppeteer": "^24.6.1",
+    "puppeteer": "^21.3.8",
+    "puppeteer-core": "^21.3.8",
+    "chrome-aws-lambda": "^10.1.0",
     "sharp": "^0.34.1"
   },
   "devDependencies": {
