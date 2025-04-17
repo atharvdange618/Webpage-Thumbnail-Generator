@@ -12,7 +12,7 @@ A simple yet powerful Node.js application that generates thumbnails of webpages 
 
 ## 🚀 Live Demo
 
-[Check out the live demo](https://your-demo-url-here.com)
+[Check out the live demo](https://webpage-thumbnail-generator.onrender.com)
 
 ![Screenshot of Thumbnail Generator](image.png)
 
