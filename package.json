@@ -5,20 +5,19 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon index.js",
-    "start": "node index.js",
-    "postinstall": "node node_modules/puppeteer/install.js"
+    "start": "node index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@sparticuz/chromium-min": "^132.0.0",
     "chalk": "^4.1.2",
     "express": "^5.1.0",
     "open-graph-scraper": "^6.9.0",
-    "puppeteer": "^21.3.8",
-    "puppeteer-core": "^21.3.8",
-    "chrome-aws-lambda": "^10.1.0",
+    "puppeteer": "^24.3.0",
+    "puppeteer-core": "^10.4.0",
     "sharp": "^0.34.1"
   },
   "devDependencies": {

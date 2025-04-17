@@ -1,8 +1,10 @@
-const chromium = require("chrome-aws-lambda");
+const chromium = require("@sparticuz/chromium-min");
 const puppeteer = require("puppeteer-core");
 
 async function captureScreenshot(url) {
-  const executablePath = await chromium.executablePath;
+  const executablePath = await chromium.executablePath(
+    "https://github.com/Sparticuz/chromium/releases/download/v126.0.0/chromium-v126.0.0-pack.tar"
+  );
 
   const browser = await puppeteer.launch({
     args: chromium.args,
