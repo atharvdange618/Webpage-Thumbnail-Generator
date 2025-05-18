@@ -44,7 +44,7 @@ app.get("/thumbnail", async (req, res) => {
     console.log(chalk.yellow("🛠️ Generating thumbnail..."));
     const thumb = await makeThumbnail(imgBuffer, {
       width: 500,
-      height: 250,
+      height: 280,
       format: "png",
       quality: 100,
       compressionLevel: 6,
