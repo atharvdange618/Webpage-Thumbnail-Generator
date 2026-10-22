@@ -64,10 +64,10 @@ app.get("/thumbnail", async (req, res) => {
 
     console.log(chalk.yellow("🛠️ Generating thumbnail..."));
     const thumb = await makeThumbnail(imgBuffer, {
-      width: 500,
-      height: 280,
+      // 1200x630 is the standard OG size; retina doubles it to 2400x1260
+      width: 1200,
+      height: 630,
       format: "png",
-      quality: 100,
       compressionLevel: 6,
       retina: true,
     });

@@ -18,7 +18,8 @@ async function captureScreenshot(url) {
       : await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }),
     executablePath,
     headless: localPath ? true : "shell",
-    defaultViewport: { width: 1920, height: 1080 },
+    // Same 1.905 ratio as the 1200x630 output; 2x density so text stays sharp at 2560x1344
+    defaultViewport: { width: 1280, height: 672, deviceScaleFactor: 2 },
   });
 
   try {

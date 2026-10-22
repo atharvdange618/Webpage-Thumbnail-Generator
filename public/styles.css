@@ -233,7 +233,7 @@ h1 em {
 
 .print {
   position: relative;
-  aspect-ratio: 1000 / 560;
+  aspect-ratio: 1200 / 630;
   padding: 14px;
   background: var(--frame);
   border: 1px solid var(--rule);
