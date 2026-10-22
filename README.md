@@ -49,7 +49,7 @@ npm run build:client
 npm start
 ```
 
-Screenshots need a Chromium binary: set `CHROMIUM_PATH` to a local Chrome or Chromium. Without it the app downloads a Linux x64 build of Chromium meant for serverless hosts, which won't run on Windows or macOS.
+Screenshots need a Chromium binary: set `CHROMIUM_PATH` to a local Chrome or Chromium. Without it, Open Graph thumbnails still work but screenshots fail with an error.
 
 ### Scripts
 
