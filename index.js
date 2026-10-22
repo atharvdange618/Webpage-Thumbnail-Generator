@@ -22,7 +22,9 @@ app.get("/thumbnail", async (req, res) => {
 
     console.log(chalk.blueBright(`\n🌐 Generating thumbnail for: ${url}`));
 
-    let imgUrl = await fetchOgImage(url);
+    // source=screenshot skips the OG image, which can be stale; anything else tries OG first
+    const live = req.query.source === "screenshot";
+    let imgUrl = live ? null : await fetchOgImage(url);
     let imgBuffer;
 
     if (imgUrl) {
@@ -45,6 +47,8 @@ app.get("/thumbnail", async (req, res) => {
         );
         imgUrl = null;
       }
+    } else if (live) {
+      console.log(chalk.yellow("📸 Live screenshot requested..."));
     } else {
       console.log(
         chalk.yellow(

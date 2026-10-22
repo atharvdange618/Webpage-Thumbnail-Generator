@@ -9,6 +9,12 @@ const img = $("thumb");
 const download = $("download");
 const copyBtn = $("copy");
 
+const hints = {
+  og: "Falls back to a screenshot if the page has none.",
+  screenshot: "Skips the Open Graph image, which can be out of date. Takes up to 20s.",
+};
+const mode = () => document.querySelector('input[name="source"]:checked').value;
+
 let currentBlob = null;
 let currentUrl = null;
 let timer = null;
@@ -39,12 +45,13 @@ function setState(state) {
 function startTimer() {
   const started = Date.now();
   $("elapsed").textContent = "0s";
-  $("phase").textContent = "Looking for an Open Graph image";
+  const live = mode() === "screenshot";
+  $("phase").textContent = live ? "Taking a live screenshot" : "Looking for an Open Graph image";
   timer = setInterval(() => {
     const secs = Math.floor((Date.now() - started) / 1000);
     $("elapsed").textContent = `${secs}s`;
     // The server doesn't report progress; an OG fetch is usually done by now
-    if (secs === 3) $("phase").textContent = "Still working. Screenshots can take up to 20s";
+    if (secs === 3 && !live) $("phase").textContent = "Still working. Screenshots can take up to 20s";
   }, 250);
 }
 
@@ -69,7 +76,10 @@ async function generate() {
   startTimer();
 
   try {
-    const resp = await fetch(`/thumbnail?url=${encodeURIComponent(url.href)}`);
+    const live = mode() === "screenshot";
+    const resp = await fetch(
+      `/thumbnail?url=${encodeURIComponent(url.href)}${live ? "&source=screenshot" : ""}`
+    );
     if (!resp.ok) {
       throw new Error(
         resp.status === 400
@@ -89,7 +99,12 @@ async function generate() {
       img.src = currentUrl;
     });
 
-    const source = resp.headers.get("X-Thumbnail-Source") === "og" ? "Open Graph image" : "Screenshot";
+    const source =
+      resp.headers.get("X-Thumbnail-Source") === "og"
+        ? "Open Graph image"
+        : live
+          ? "Live screenshot"
+          : "Screenshot";
     const host = url.hostname.replace(/^www\./, "");
     img.alt = `Thumbnail of ${host}`;
     download.href = currentUrl;
@@ -99,8 +114,11 @@ async function generate() {
     $("metaFile").textContent = `PNG · ${Math.round(blob.size / 1024)} KB`;
 
     setState("done");
-    status.textContent =
-      source === "Screenshot" ? "Done. The page has no usable Open Graph image, so this is a screenshot." : "Done. Made from the page's Open Graph image.";
+    status.textContent = {
+      "Open Graph image": "Done. Made from the page's Open Graph image.",
+      "Live screenshot": "Done. This is how the page looks right now.",
+      Screenshot: "Done. The page has no usable Open Graph image, so this is a screenshot.",
+    }[source];
   } catch (err) {
     console.error(err);
     $("errorText").textContent = err.message.startsWith("Failed to fetch")
@@ -119,6 +137,15 @@ form.addEventListener("submit", (e) => {
 });
 
 $("retry").addEventListener("click", generate);
+
+// Switching source re-runs the current URL so you can compare the two
+document.querySelectorAll('input[name="source"]').forEach((radio) =>
+  radio.addEventListener("change", () => {
+    $("modeHint").textContent = hints[mode()];
+    const state = stage.dataset.state;
+    if ((state === "done" || state === "error") && input.value.trim()) generate();
+  })
+);
 
 input.addEventListener("input", () => {
   if (input.hasAttribute("aria-invalid")) {

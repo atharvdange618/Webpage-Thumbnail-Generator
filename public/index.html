@@ -18,8 +18,8 @@
         <p class="eyebrow">Link &rarr; Thumbnail</p>
         <h1>Turn any page into a <em>clean thumbnail</em>.</h1>
         <p class="lede">
-          Uses the page's Open Graph image when it has one. If it doesn't, it
-          takes a screenshot instead.
+          Uses the page's Open Graph image, or a live screenshot when you want
+          the page as it looks right now.
         </p>
       </header>
 
@@ -40,6 +40,18 @@
         />
         <button id="submit" type="submit">Generate</button>
       </form>
+      <fieldset class="mode">
+        <legend class="sr-only">Image source</legend>
+        <label>
+          <input type="radio" name="source" value="og" checked />
+          <span>Open Graph image</span>
+        </label>
+        <label>
+          <input type="radio" name="source" value="screenshot" />
+          <span>Live screenshot</span>
+        </label>
+        <p class="mode-hint" id="modeHint">Falls back to a screenshot if the page has none.</p>
+      </fieldset>
       <p id="status" class="status" role="status" aria-live="polite"></p>
 
       <section id="stage" class="stage" data-state="idle" aria-label="Result">
