@@ -19,7 +19,7 @@ COPY . .
 # A type error or failing test stops the image from building
 RUN npm run typecheck && npm test && npm run build:client && npm prune --omit=dev
 
-ENV NODE_ENV=production
+ENV NODE_ENV=production \n    HOST=0.0.0.0
 
 # Chromium runs with --no-sandbox, so keep it off root
 USER node

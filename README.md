@@ -40,25 +40,41 @@ The image build runs the typecheck and the test suite, and fails if either one f
 
 ```bash
 npm install
-npm run build:client
+npm run build
 CHROMIUM_PATH=/path/to/chromium npm start
 ```
 
-The server listens on port 3000 and runs the `.ts` files directly through Node's type stripping, so there is no build step for the server.
+`npm run build` compiles the server to `dist/` and the client to `public/script.js`. The server listens on `127.0.0.1:3000`. `npm run dev` skips the build and runs the `.ts` files through Node's type stripping.
 
-### Production
+### Production with PM2
+
+On the server, install Chromium once as root. On Debian it lands at `/usr/bin/chromium`. Ubuntu ships Chromium as a snap, which Puppeteer handles badly, so install Google Chrome there and point `CHROMIUM_PATH` at it.
 
 ```bash
-docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+sudo apt install chromium
 ```
 
-`compose.prod.yaml` adds `restart: unless-stopped`, so the app comes back after a crash or a reboot. The port still binds to `127.0.0.1:3100`, so put a reverse proxy in front of it for HTTPS. In CloudPanel, add a Reverse Proxy site with `http://127.0.0.1:3100` as the target and issue a Let's Encrypt certificate for it.
+Then, from the project folder:
+
+```bash
+npm ci
+npm run build
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 startup   # prints a command to run as root so PM2 starts on boot
+```
+
+`ecosystem.config.cjs` sets `PORT` and `CHROMIUM_PATH`. In CloudPanel, create a Node.js site, set its App Port to the same `PORT`, and issue a Let's Encrypt certificate. CloudPanel's nginx then proxies HTTPS to `127.0.0.1:<PORT>`.
+
+To deploy a change, pull it, run `npm ci && npm run build`, then `pm2 restart thumbnail-generator`.
 
 ## Configuration
 
 | Variable        | Required        | Description                                                                                                                                              |
 | --------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `CHROMIUM_PATH` | For screenshots | Path to a Chrome or Chromium binary. The Docker image sets it to `/usr/bin/chromium`. Without it, OG thumbnails still work and screenshot requests fail. |
+| `PORT`          | No              | Port to listen on. Defaults to `3000`.                                                                                                                   |
+| `HOST`          | No              | Address to listen on. Defaults to `127.0.0.1`, so only a proxy on the same host can reach it. The Docker image sets `0.0.0.0`.                           |
 
 You can change the output size and encoding in `src/utils/makeThumbnail.ts`.
 
@@ -98,7 +114,7 @@ Anyone who can reach the service can make the server fetch any URL, so outbound 
 - Server-side fetches check the address at connect time, so a host can't pass the check and then resolve to a private IP. Each redirect hop gets checked again.
 - Chromium's requests go through request interception, which aborts any that point at a private host.
 
-Request interception doesn't cover everything Chromium can do. It misses WebSockets and WebRTC, and Chromium runs its own DNS lookups. When you deploy screenshot mode on a public host, add an egress firewall rule that drops container traffic to private ranges.
+Request interception doesn't cover everything Chromium can do. It misses WebSockets and WebRTC, and Chromium runs its own DNS lookups. When you deploy screenshot mode on a public host, add an egress firewall rule that drops the app's outbound traffic to private ranges.
 
 ## Development
 
@@ -106,6 +122,8 @@ Request interception doesn't cover everything Chromium can do. It misses WebSock
 | ---------------------- | --------------------------------------------------------- |
 | `npm run dev`          | Runs the server and restarts it on changes                |
 | `npm run dev:client`   | Recompiles `src/client/script.ts` on changes              |
+| `npm run build`        | Compiles the server to `dist/` and the client             |
+| `npm start`            | Runs the compiled server from `dist/`                     |
 | `npm run build:client` | Compiles the client to `public/script.js`                 |
 | `npm run typecheck`    | Typechecks the server, tests and client                   |
 | `npm run lint`         | ESLint with typescript-eslint's strict type-checked rules |

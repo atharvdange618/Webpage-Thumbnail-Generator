@@ -1,0 +1,13 @@
+{
+  // Compiles the server to dist/ for production. Imports keep their .ts extensions in
+  // src/ and come out as .js.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "rootDir": "src",
+    "outDir": "dist"
+  },
+  "include": ["src"],
+  "exclude": ["src/client", "src/**/*.test.ts"]
+}
