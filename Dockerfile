@@ -16,8 +16,8 @@ RUN npm ci
 
 COPY . .
 
-# A type error stops the image from building
-RUN npm run typecheck && npm run build:client && npm prune --omit=dev
+# A type error or failing test stops the image from building
+RUN npm run typecheck && npm test && npm run build:client && npm prune --omit=dev
 
 ENV NODE_ENV=production
 

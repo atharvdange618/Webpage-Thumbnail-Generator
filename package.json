@@ -9,7 +9,9 @@
     "dev:client": "tsc -p tsconfig.client.json --watch",
     "build:client": "tsc -p tsconfig.client.json",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.client.json --noEmit",
-    "lint": "eslint --flag unstable_native_nodejs_ts_config ."
+    "lint": "eslint --flag unstable_native_nodejs_ts_config .",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
