@@ -46,6 +46,14 @@ CHROMIUM_PATH=/path/to/chromium npm start
 
 The server listens on port 3000 and runs the `.ts` files directly through Node's type stripping, so there is no build step for the server.
 
+### Production
+
+```bash
+docker compose -f compose.yaml -f compose.prod.yaml up -d --build
+```
+
+`compose.prod.yaml` adds `restart: unless-stopped`, so the app comes back after a crash or a reboot. The port still binds to `127.0.0.1:3100`, so put a reverse proxy in front of it for HTTPS. In CloudPanel, add a Reverse Proxy site with `http://127.0.0.1:3100` as the target and issue a Let's Encrypt certificate for it.
+
 ## Configuration
 
 | Variable        | Required        | Description                                                                                                                                              |
