@@ -3,15 +3,21 @@ const chromium = require("@sparticuz/chromium-min").default;
 const puppeteer = require("puppeteer-core");
 
 async function captureScreenshot(url) {
-  // Pack version must match the installed @sparticuz/chromium-min version
-  const executablePath = await chromium.executablePath(
-    "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar"
-  );
+  // Set in Docker to use the system Chromium instead of the Lambda build
+  const localPath = process.env.CHROMIUM_PATH;
+  const executablePath =
+    localPath ||
+    (await chromium.executablePath(
+      // Pack version must match the installed @sparticuz/chromium-min version
+      "https://github.com/Sparticuz/chromium/releases/download/v153.0.0/chromium-v153.0.0-pack.x64.tar"
+    ));
 
   const browser = await puppeteer.launch({
-    args: await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }),
+    args: localPath
+      ? ["--no-sandbox", "--disable-dev-shm-usage"]
+      : await puppeteer.defaultArgs({ args: chromium.args, headless: "shell" }),
     executablePath,
-    headless: "shell",
+    headless: localPath ? true : "shell",
     defaultViewport: { width: 1920, height: 1080 },
   });
 

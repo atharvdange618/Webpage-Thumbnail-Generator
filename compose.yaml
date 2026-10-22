@@ -1,0 +1,11 @@
+name: thumbnail-generator
+
+services:
+  app:
+    build: .
+    image: thumbnail-gen
+    # Node as PID 1 ignores SIGTERM; tini forwards it so stop is instant
+    init: true
+    ports:
+      # 3000 is taken on the host
+      - "3100:3000"
