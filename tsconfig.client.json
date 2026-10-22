@@ -1,0 +1,20 @@
+{
+  // Browser script: compiled to public/script.js and loaded as <script type="module">
+  "compilerOptions": {
+    "target": "es2022",
+    "lib": ["es2023", "dom", "dom.iterable"],
+    "module": "esnext",
+    "moduleDetection": "force",
+    "types": [],
+    "rootDir": "src/client",
+    "outDir": "public",
+
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noFallthroughCasesInSwitch": true,
+    "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true
+  },
+  "include": ["src/client"]
+}
