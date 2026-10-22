@@ -1,4 +1,5 @@
 import http, { type ClientRequest, type IncomingMessage } from "node:http";
+import type { AddressInfo } from "node:net";
 import https from "node:https";
 import type { LookupAddress } from "node:dns";
 import { PassThrough } from "node:stream";
@@ -160,5 +161,51 @@ describe("safeGet", () => {
     const calls = respond({ status: 200 });
     await expect(safeGet("http://10.0.0.1/")).rejects.toBeInstanceOf(BlockedAddressError);
     expect(calls).toHaveLength(0);
+  });
+
+  describe("deadline", () => {
+    const realGet = http.get.bind(http);
+    const realTimeout = AbortSignal.timeout.bind(AbortSignal);
+    let server: http.Server | undefined;
+
+    afterEach(async () => {
+      server?.closeAllConnections();
+      await new Promise((resolve) => server?.close(resolve));
+      server = undefined;
+    });
+
+    // A real server on 127.0.0.1 that sends headers, then one byte every 50ms forever. The
+    // socket never goes quiet, so only a deadline over the whole request can end it.
+    async function startDripServer(): Promise<number> {
+      const drip = http.createServer((_req, res) => {
+        res.writeHead(200, { "content-type": "text/html" });
+        const timer = setInterval(() => res.write("."), 50);
+        res.on("close", () => {
+          clearInterval(timer);
+        });
+      });
+      server = drip;
+      await new Promise<void>((resolve) => drip.listen(0, "127.0.0.1", resolve));
+      return (drip.address() as AddressInfo).port;
+    }
+
+    it("aborts a response that drips forever, using one deadline for the whole call", async () => {
+      const port = await startDripServer();
+      // safeGet rightly refuses 127.0.0.1, so send the request there behind its back,
+      // keeping the signal it passed
+      vi.spyOn(http, "get").mockImplementation(((url: URL, options: http.RequestOptions, callback) =>
+        realGet(
+          `http://127.0.0.1:${String(port)}${url.pathname}`,
+          { ...options, lookup: undefined },
+          callback
+        )) as typeof http.get);
+      // The real deadline is 10s; 300ms keeps the test fast
+      const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(() => realTimeout(300));
+
+      const started = Date.now();
+      await expect(safeGet("http://93.184.216.34/")).rejects.toThrow("Timed out after 10000ms");
+      expect(Date.now() - started).toBeLessThan(2000);
+      expect(timeout).toHaveBeenCalledExactlyOnceWith(10_000);
+    });
   });
 });

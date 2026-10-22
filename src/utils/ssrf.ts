@@ -106,21 +106,18 @@ const MAX_REDIRECTS = 5;
 const MAX_BYTES = 15 * 1024 * 1024;
 const TIMEOUT_MS = 10_000;
 
-function get(url: URL): Promise<http.IncomingMessage> {
+function get(url: URL, signal: AbortSignal): Promise<http.IncomingMessage> {
   const client = url.protocol === "https:" ? https : http;
   return new Promise((resolve, reject) => {
     const req = client.get(
       url,
       {
         lookup: safeLookup,
-        timeout: TIMEOUT_MS,
+        signal,
         headers: { "user-agent": "Mozilla/5.0 (compatible; ThumbnailGenerator/1.0)", accept: "*/*" },
       },
       resolve
     );
-    req.on("timeout", () => {
-      req.destroy(new Error(`Timed out after ${TIMEOUT_MS}ms`));
-    });
     req.on("error", reject);
   });
 }
@@ -146,22 +143,30 @@ function readBody(res: http.IncomingMessage): Promise<Buffer> {
 
 /** GET that only talks to public addresses, re-checking every redirect hop. */
 export async function safeGet(raw: string): Promise<SafeResponse> {
-  let url = await assertPublicUrl(raw);
-  for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
-    const res = await get(url);
-    const status = res.statusCode ?? 0;
-    const location = res.headers.location;
-    if (status >= 300 && status < 400 && location) {
-      res.resume();
-      url = await assertPublicUrl(new URL(location, url));
-      continue;
+  // One deadline for every hop and the body. A socket timeout only fires after a quiet
+  // stretch, so a server sending a byte every few seconds could hold a request open for days.
+  const signal = AbortSignal.timeout(TIMEOUT_MS);
+  try {
+    let url = await assertPublicUrl(raw);
+    for (let hop = 0; hop <= MAX_REDIRECTS; hop++) {
+      const res = await get(url, signal);
+      const status = res.statusCode ?? 0;
+      const location = res.headers.location;
+      if (status >= 300 && status < 400 && location) {
+        res.resume();
+        url = await assertPublicUrl(new URL(location, url));
+        continue;
+      }
+      return {
+        status,
+        contentType: res.headers["content-type"] ?? "",
+        body: await readBody(res),
+        url: url.href,
+      };
     }
-    return {
-      status,
-      contentType: res.headers["content-type"] ?? "",
-      body: await readBody(res),
-      url: url.href,
-    };
+    throw new Error(`More than ${MAX_REDIRECTS} redirects`);
+  } catch (err) {
+    if (signal.aborted) throw new Error(`Timed out after ${TIMEOUT_MS}ms`, { cause: err });
+    throw err;
   }
-  throw new Error(`More than ${MAX_REDIRECTS} redirects`);
 }
