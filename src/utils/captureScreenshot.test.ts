@@ -9,6 +9,7 @@ const close = vi.fn<Browser["close"]>();
 const setRequestInterception = vi.fn<Page["setRequestInterception"]>();
 // The handler captureScreenshot registers for Chromium's "request" events
 let onRequest: ((request: HTTPRequest) => void) | undefined;
+let browser: Browser;
 
 beforeEach(() => {
   vi.resetAllMocks();
@@ -26,7 +27,7 @@ beforeEach(() => {
       if (event === "request") onRequest = handler;
     },
   } as unknown as Page;
-  const browser = { newPage: vi.fn().mockResolvedValue(page), close } as unknown as Browser;
+  browser = { newPage: vi.fn().mockResolvedValue(page), close } as unknown as Browser;
   launch.mockResolvedValue(browser);
 });
 
@@ -100,6 +101,63 @@ describe("captureScreenshot", () => {
       "not a url",
     ])("aborts %s", async (url) => {
       expect(await route(url)).toBe("aborted");
+    });
+  });
+
+  describe("concurrency", () => {
+    // Each launch waits until settleNext() lets the oldest one finish or fail
+    const pending: ((error?: Error) => void)[] = [];
+    function settleNext(error?: Error): void {
+      const settle = pending.shift();
+      if (!settle) throw new Error("No launch is waiting");
+      settle(error);
+    }
+
+    beforeEach(() => {
+      pending.length = 0;
+      launch.mockImplementation(
+        () =>
+          new Promise<Browser>((resolve, reject) => {
+            pending.push((error) => {
+              if (error) reject(error);
+              else resolve(browser);
+            });
+          })
+      );
+    });
+
+    it("runs two captures at once and starts a queued one when a slot frees up", async () => {
+      const captures = [1, 2, 3].map(() => captureScreenshot("https://example.com"));
+      await vi.waitFor(() => {
+        expect(launch).toHaveBeenCalledTimes(2);
+      });
+
+      settleNext();
+      await expect(captures[0]).resolves.toBe(pixels);
+      await vi.waitFor(() => {
+        expect(launch).toHaveBeenCalledTimes(3);
+      });
+
+      settleNext();
+      settleNext();
+      await expect(Promise.all(captures)).resolves.toEqual([pixels, pixels, pixels]);
+    });
+
+    it("frees the slot when a capture fails", async () => {
+      const captures = [1, 2, 3].map(() => captureScreenshot("https://example.com"));
+      await vi.waitFor(() => {
+        expect(launch).toHaveBeenCalledTimes(2);
+      });
+
+      settleNext(new Error("Failed to launch the browser process"));
+      await expect(captures[0]).rejects.toThrow("Failed to launch");
+      await vi.waitFor(() => {
+        expect(launch).toHaveBeenCalledTimes(3);
+      });
+
+      settleNext();
+      settleNext();
+      await expect(Promise.all(captures.slice(1))).resolves.toEqual([pixels, pixels]);
     });
   });
 });

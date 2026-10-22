@@ -34,6 +34,27 @@ function blockPrivateRequests(): (request: HTTPRequest) => void {
   };
 }
 
+// Each capture runs its own 200-400 MB Chromium, so cap how many run at once and queue the rest.
+// ponytail: in-memory queue with no length cap, add one (or a 503) if bursts pile up
+const MAX_CONCURRENT = 2;
+let active = 0;
+const waiting: (() => void)[] = [];
+
+async function acquireSlot(): Promise<void> {
+  if (active < MAX_CONCURRENT) {
+    active++;
+    return;
+  }
+  await new Promise<void>((resolve) => waiting.push(resolve));
+}
+
+function releaseSlot(): void {
+  const next = waiting.shift();
+  // Hand the slot straight to the next caller so active stays the same
+  if (next) next();
+  else active--;
+}
+
 export default async function captureScreenshot(url: string): Promise<Uint8Array> {
   // The Docker image sets this to the system Chromium
   const executablePath = process.env.CHROMIUM_PATH;
@@ -41,6 +62,15 @@ export default async function captureScreenshot(url: string): Promise<Uint8Array
     throw new Error("CHROMIUM_PATH is not set; point it at a Chrome or Chromium binary");
   }
 
+  await acquireSlot();
+  try {
+    return await capture(url, executablePath);
+  } finally {
+    releaseSlot();
+  }
+}
+
+async function capture(url: string, executablePath: string): Promise<Uint8Array> {
   const browser = await puppeteer.launch({
     // No sandbox because Docker's default seccomp profile blocks the namespaces it needs
     args: ["--no-sandbox", "--disable-dev-shm-usage"],
