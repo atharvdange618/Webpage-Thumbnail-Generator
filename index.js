@@ -28,15 +28,32 @@ app.get("/thumbnail", async (req, res) => {
     if (imgUrl) {
       console.log(chalk.green("✅ Open Graph image found: ") + imgUrl);
       console.log(chalk.yellow("📥 Fetching Open Graph image..."));
-      const resp = await fetch(imgUrl);
-      imgBuffer = Buffer.from(await resp.arrayBuffer());
-      console.log(chalk.green("🖼️ Open Graph image fetched successfully!"));
+      try {
+        const resp = await fetch(imgUrl);
+        const type = resp.headers.get("content-type") ?? "";
+        // A dead og:image often returns a 404 page or HTML, which sharp can't read
+        if (!resp.ok || !type.startsWith("image/")) {
+          throw new Error(`HTTP ${resp.status}, ${type || "no content-type"}`);
+        }
+        imgBuffer = Buffer.from(await resp.arrayBuffer());
+        console.log(chalk.green("🖼️ Open Graph image fetched successfully!"));
+      } catch (err) {
+        console.log(
+          chalk.yellow(
+            `⚠️ Open Graph image unusable (${err.message}). Falling back to screenshot...`
+          )
+        );
+        imgUrl = null;
+      }
     } else {
       console.log(
         chalk.yellow(
           "⚠️ No Open Graph image found. Falling back to screenshot..."
         )
       );
+    }
+
+    if (!imgBuffer) {
       imgBuffer = await captureScreenshot(url);
       console.log(chalk.green("📸 Screenshot captured successfully!"));
     }

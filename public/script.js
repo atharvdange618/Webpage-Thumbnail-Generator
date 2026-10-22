@@ -100,7 +100,7 @@ async function generate() {
 
     setState("done");
     status.textContent =
-      source === "Screenshot" ? "Done. The page has no Open Graph image, so this is a screenshot." : "Done. Made from the page's Open Graph image.";
+      source === "Screenshot" ? "Done. The page has no usable Open Graph image, so this is a screenshot." : "Done. Made from the page's Open Graph image.";
   } catch (err) {
     console.error(err);
     $("errorText").textContent = err.message.startsWith("Failed to fetch")
