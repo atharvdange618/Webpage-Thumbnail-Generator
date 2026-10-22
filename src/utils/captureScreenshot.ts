@@ -1,4 +1,38 @@
-import puppeteer from "puppeteer-core";
+import puppeteer, { type HTTPRequest } from "puppeteer-core";
+import { assertPublicUrl } from "./ssrf.ts";
+
+// Chromium resolves DNS itself, so every request it makes (navigation, redirects, iframes,
+// images, fetch/XHR) is checked here. Results are cached per host for the life of one page.
+function blockPrivateRequests(): (request: HTTPRequest) => void {
+  const verdicts = new Map<string, Promise<boolean>>();
+  const isAllowed = (raw: string): Promise<boolean> => {
+    let url: URL;
+    try {
+      url = new URL(raw);
+    } catch {
+      return Promise.resolve(false);
+    }
+    // Inline content never leaves the browser
+    if (url.protocol === "data:" || url.protocol === "blob:") return Promise.resolve(true);
+    const key = `${url.protocol}//${url.host}`;
+    let verdict = verdicts.get(key);
+    if (!verdict) {
+      verdict = assertPublicUrl(url).then(
+        () => true,
+        () => false
+      );
+      verdicts.set(key, verdict);
+    }
+    return verdict;
+  };
+
+  return (request) => {
+    void isAllowed(request.url())
+      .then((ok) => (ok ? request.continue() : request.abort("blockedbyclient")))
+      // The page may close while a check is pending; the request no longer matters then
+      .catch(() => undefined);
+  };
+}
 
 export default async function captureScreenshot(url: string): Promise<Uint8Array> {
   // The Docker image sets this to the system Chromium
@@ -18,6 +52,8 @@ export default async function captureScreenshot(url: string): Promise<Uint8Array
 
   try {
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on("request", blockPrivateRequests());
     await page.goto(url, { waitUntil: "networkidle2" });
     return await page.screenshot({ fullPage: false });
   } finally {

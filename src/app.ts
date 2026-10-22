@@ -4,6 +4,7 @@ import chalk from "chalk";
 import fetchOgImage from "./utils/fetchOgImage.ts";
 import captureScreenshot from "./utils/captureScreenshot.ts";
 import makeThumbnail from "./utils/makeThumbnail.ts";
+import { assertPublicUrl, BlockedAddressError, safeGet } from "./utils/ssrf.ts";
 
 const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
@@ -24,6 +25,21 @@ app.get("/thumbnail", async (req, res) => {
 
     console.log(chalk.blueBright(`\n🌐 Generating thumbnail for: ${url}`));
 
+    // Fail fast with a 400; safeGet and the screenshot's request interception re-check
+    // every request, which also covers redirects and DNS rebinding
+    try {
+      await assertPublicUrl(url);
+    } catch (err) {
+      if (err instanceof BlockedAddressError || err instanceof TypeError) {
+        console.log(chalk.red(`[BLOCKED] ${errorMessage(err)}`));
+        res
+          .status(400)
+          .send(err instanceof BlockedAddressError ? err.message : "That isn't a valid URL");
+        return;
+      }
+      throw err;
+    }
+
     // source=screenshot skips the OG image, which can be stale; anything else tries OG first
     const live = req.query.source === "screenshot";
     let imgUrl = live ? undefined : await fetchOgImage(url);
@@ -33,13 +49,14 @@ app.get("/thumbnail", async (req, res) => {
       console.log(chalk.green("✅ Open Graph image found: ") + imgUrl);
       console.log(chalk.yellow("📥 Fetching Open Graph image..."));
       try {
-        const resp = await fetch(imgUrl);
-        const type = resp.headers.get("content-type") ?? "";
+        // safeGet also refuses an og:image that points (or redirects) into a private network
+        const resp = await safeGet(imgUrl);
+        const type = resp.contentType;
         // A dead og:image often returns a 404 page or HTML, which sharp can't read
-        if (!resp.ok || !type.startsWith("image/")) {
+        if (resp.status < 200 || resp.status >= 300 || !type.startsWith("image/")) {
           throw new Error(`HTTP ${resp.status}, ${type || "no content-type"}`);
         }
-        imgBuffer = Buffer.from(await resp.arrayBuffer());
+        imgBuffer = resp.body;
         console.log(chalk.green("🖼️ Open Graph image fetched successfully!"));
       } catch (err) {
         console.log(

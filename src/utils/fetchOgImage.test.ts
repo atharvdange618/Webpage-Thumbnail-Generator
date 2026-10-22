@@ -1,60 +1,74 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import ogs from "open-graph-scraper";
 import fetchOgImage from "./fetchOgImage.ts";
+import { safeGet } from "./ssrf.ts";
 
-vi.mock("open-graph-scraper");
+vi.mock("./ssrf.ts");
 
-// Only the fields fetchOgImage reads; the real result type has dozens more
-const scrape = (ogImage: { url: string }[] | undefined): void => {
-  vi.mocked(ogs).mockResolvedValue({
-    error: false,
-    result: { ogImage },
-    html: "",
-    response: {},
-  } as unknown as Awaited<ReturnType<typeof ogs>>);
+// Serves a page through the mocked safeGet; the scraper parses it for real
+const page = (head: string, { url = "https://example.com/blog/post", status = 200 } = {}): void => {
+  vi.mocked(safeGet).mockResolvedValue({
+    status,
+    contentType: "text/html",
+    body: Buffer.from(`<!doctype html><html><head>${head}</head><body></body></html>`),
+    url,
+  });
 };
+const og = (content: string): string => `<meta property="og:image" content="${content}">`;
 
 describe("fetchOgImage", () => {
   beforeEach(() => {
     vi.resetAllMocks();
   });
 
+  it("fetches the page through safeGet", async () => {
+    page(og("https://cdn.example.com/og.png"));
+    await fetchOgImage("https://example.com/blog/post");
+    expect(safeGet).toHaveBeenCalledWith("https://example.com/blog/post");
+  });
+
   it("returns an absolute og:image URL unchanged", async () => {
-    scrape([{ url: "https://cdn.example.com/og.png" }]);
+    page(og("https://cdn.example.com/og.png"));
     await expect(fetchOgImage("https://example.com/blog/post")).resolves.toBe(
       "https://cdn.example.com/og.png"
     );
   });
 
   it("resolves a root-relative path against the page origin", async () => {
-    scrape([{ url: "/og-image.png" }]);
+    page(og("/og-image.png"), { url: "https://usetelemetry.vercel.app/" });
     await expect(fetchOgImage("https://usetelemetry.vercel.app/")).resolves.toBe(
       "https://usetelemetry.vercel.app/og-image.png"
     );
   });
 
   it("resolves a path-relative URL against the page path", async () => {
-    scrape([{ url: "images/og.png" }]);
+    page(og("images/og.png"));
     await expect(fetchOgImage("https://example.com/blog/post")).resolves.toBe(
       "https://example.com/blog/images/og.png"
     );
   });
 
+  it("resolves a relative path against the final URL after a redirect", async () => {
+    page(og("/og.png"), { url: "https://www.example.com/" });
+    await expect(fetchOgImage("https://example.com/")).resolves.toBe("https://www.example.com/og.png");
+  });
+
   it("uses the first image when the page lists several", async () => {
-    scrape([{ url: "https://example.com/first.png" }, { url: "https://example.com/second.png" }]);
+    page(og("https://example.com/first.png") + og("https://example.com/second.png"));
     await expect(fetchOgImage("https://example.com")).resolves.toBe("https://example.com/first.png");
   });
 
-  it.each([
-    { case: "no og:image tag", ogImage: undefined },
-    { case: "an empty og:image list", ogImage: [] },
-  ])("returns undefined for $case", async ({ ogImage }) => {
-    scrape(ogImage);
+  it("returns undefined when the page has no og:image", async () => {
+    page("<title>No preview</title>");
     await expect(fetchOgImage("https://example.com")).resolves.toBeUndefined();
   });
 
-  it("propagates scraper errors, such as a page that won't load", async () => {
-    vi.mocked(ogs).mockRejectedValue(new Error("Page not found"));
-    await expect(fetchOgImage("https://nonexistent.invalid")).rejects.toThrow("Page not found");
+  it("throws when the page returns an error status", async () => {
+    page("", { status: 404 });
+    await expect(fetchOgImage("https://example.com/missing")).rejects.toThrow("HTTP 404");
+  });
+
+  it("propagates fetch errors, such as a private address", async () => {
+    vi.mocked(safeGet).mockRejectedValue(new Error("127.0.0.1 points to a private network"));
+    await expect(fetchOgImage("http://127.0.0.1")).rejects.toThrow("private network");
   });
 });

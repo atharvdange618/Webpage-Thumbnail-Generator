@@ -131,9 +131,10 @@ async function generate(): Promise<void> {
       `/thumbnail?url=${encodeURIComponent(url.href)}${live ? "&source=screenshot" : ""}`
     );
     if (!resp.ok) {
+      // 400s carry a short reason, such as a private-network address
       throw new Error(
         resp.status === 400
-          ? "The server didn't accept that URL."
+          ? `The server didn't accept that URL: ${await resp.text()}.`
           : "The page couldn't be loaded. Check the address, or the site may block bots."
       );
     }
