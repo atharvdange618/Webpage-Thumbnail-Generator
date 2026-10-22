@@ -72,8 +72,14 @@ export default async function captureScreenshot(url: string): Promise<Uint8Array
 
 async function capture(url: string, executablePath: string): Promise<Uint8Array> {
   const browser = await puppeteer.launch({
-    // No sandbox because Docker's default seccomp profile blocks the namespaces it needs
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
+    args: [
+      // No sandbox because Docker's default seccomp profile blocks the namespaces it needs
+      "--no-sandbox",
+      "--disable-dev-shm-usage",
+      // WebRTC traffic never passes request interception; this stops it from opening UDP
+      // connections of its own. The VPS egress firewall is the real fix.
+      "--force-webrtc-ip-handling-policy=disable_non_proxied_udp",
+    ],
     executablePath,
     headless: true,
     // Same 1.905 ratio as the 1200x630 output; 2x density so text stays sharp at 2560x1344
@@ -82,6 +88,8 @@ async function capture(url: string, executablePath: string): Promise<Uint8Array>
 
   try {
     const page = await browser.newPage();
+    // Service workers fetch outside request interception, so keep the page from using them
+    await page.setBypassServiceWorker(true);
     await page.setRequestInterception(true);
     page.on("request", blockPrivateRequests());
     await page.goto(url, { waitUntil: "networkidle2" });

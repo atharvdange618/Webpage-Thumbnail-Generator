@@ -7,6 +7,7 @@ const pixels = new Uint8Array([1, 2, 3]);
 const goto = vi.fn<Page["goto"]>();
 const close = vi.fn<Browser["close"]>();
 const setRequestInterception = vi.fn<Page["setRequestInterception"]>();
+const setBypassServiceWorker = vi.fn<Page["setBypassServiceWorker"]>();
 // The handler captureScreenshot registers for Chromium's "request" events
 let onRequest: ((request: HTTPRequest) => void) | undefined;
 let browser: Browser;
@@ -18,10 +19,12 @@ beforeEach(() => {
   close.mockResolvedValue();
   goto.mockResolvedValue(null);
   setRequestInterception.mockResolvedValue();
+  setBypassServiceWorker.mockResolvedValue();
   // Only the methods captureScreenshot calls; the real Browser and Page have hundreds
   const page = {
     goto,
     setRequestInterception,
+    setBypassServiceWorker,
     screenshot: vi.fn().mockResolvedValue(pixels),
     on: (event: string, handler: (request: HTTPRequest) => void) => {
       if (event === "request") onRequest = handler;
@@ -81,6 +84,21 @@ describe("captureScreenshot", () => {
       expect(setRequestInterception).toHaveBeenCalledWith(true);
       expect(setRequestInterception.mock.invocationCallOrder[0]).toBeLessThan(
         goto.mock.invocationCallOrder[0] ?? 0
+      );
+    });
+
+    it("bypasses service workers before navigating", async () => {
+      await captureScreenshot("https://example.com");
+      expect(setBypassServiceWorker).toHaveBeenCalledWith(true);
+      expect(setBypassServiceWorker.mock.invocationCallOrder[0]).toBeLessThan(
+        goto.mock.invocationCallOrder[0] ?? 0
+      );
+    });
+
+    it("launches Chromium with WebRTC limited to proxied traffic", async () => {
+      await captureScreenshot("https://example.com");
+      expect(launch.mock.calls[0]?.[0]?.args).toContain(
+        "--force-webrtc-ip-handling-policy=disable_non_proxied_udp"
       );
     });
 
