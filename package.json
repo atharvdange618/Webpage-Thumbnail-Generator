@@ -12,15 +12,14 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "@sparticuz/chromium-min": "^132.0.0",
+    "@sparticuz/chromium-min": "^153.0.0",
     "chalk": "^4.1.2",
-    "express": "^5.1.0",
-    "open-graph-scraper": "^6.9.0",
-    "puppeteer": "^24.3.0",
-    "puppeteer-core": "^10.4.0",
-    "sharp": "^0.34.1"
+    "express": "^5.3.0",
+    "open-graph-scraper": "^6.12.0",
+    "puppeteer-core": "^25.15.0",
+    "sharp": "^0.35.5"
   },
   "devDependencies": {
-    "nodemon": "^3.1.9"
+    "nodemon": "^3.1.14"
   }
 }
