@@ -11,6 +11,8 @@
 
 Give it a URL and it returns a 1200×630 thumbnail (2400×1260 for HiDPI). It uses the page's Open Graph image when the page has a usable one, and takes a live screenshot with headless Chromium when it doesn't.
 
+![The thumbnail generator UI after generating a thumbnail for github.com](docs/screenshot.png)
+
 ## Features
 
 - Uses the page's `og:image`, resolving relative paths against the page URL
@@ -126,4 +128,4 @@ Tests sit next to the code they cover, as `*.test.ts`.
 
 ## Author
 
-Atharv Dange ([@atharvdange.\_](https://www.threads.net/@atharvdange._))
+Atharv Dange ([@atharvdangedev](https://x.com/atharvdangedev))
