@@ -6,7 +6,8 @@ const submitBtn = $("submit");
 const status = $("status");
 const stage = $("stage");
 const img = $("thumb");
-const download = $("download");
+const downloadPng = $("downloadPng");
+const downloadWebp = $("downloadWebp");
 const copyBtn = $("copy");
 
 const hints = {
@@ -17,7 +18,23 @@ const mode = () => document.querySelector('input[name="source"]:checked').value;
 
 let currentBlob = null;
 let currentUrl = null;
+let webpUrl = null;
 let timer = null;
+
+const formatSize = (bytes) =>
+  bytes < 1024 * 1024 ? `${Math.round(bytes / 1024)} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+
+// Re-encode the loaded PNG in the browser so the download doesn't need a second
+// server round trip (and, in live mode, a second screenshot)
+async function toWebp(image) {
+  const canvas = document.createElement("canvas");
+  canvas.width = image.naturalWidth;
+  canvas.height = image.naturalHeight;
+  canvas.getContext("2d").drawImage(image, 0, 0);
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/webp", 0.9));
+  // Browsers that can't encode WebP (Safari) quietly hand back a PNG
+  return blob?.type === "image/webp" ? blob : null;
+}
 
 // Clipboard image writes need ClipboardItem and a secure context (localhost counts)
 copyBtn.hidden = !(window.ClipboardItem && navigator.clipboard?.write);
@@ -107,11 +124,24 @@ async function generate() {
           : "Screenshot";
     const host = url.hostname.replace(/^www\./, "");
     img.alt = `Thumbnail of ${host}`;
-    download.href = currentUrl;
-    download.download = `${host.split(".")[0]}-thumbnail.png`;
+    const name = `${host.split(".")[0]}-thumbnail`;
+    downloadPng.href = currentUrl;
+    downloadPng.download = `${name}.png`;
+    downloadPng.textContent = `Download PNG · ${formatSize(blob.size)}`;
+
+    if (webpUrl) URL.revokeObjectURL(webpUrl);
+    const webp = await toWebp(img);
+    webpUrl = webp && URL.createObjectURL(webp);
+    downloadWebp.hidden = !webp;
+    downloadPng.classList.toggle("primary", !webp);
+    if (webp) {
+      downloadWebp.href = webpUrl;
+      downloadWebp.download = `${name}.webp`;
+      downloadWebp.textContent = `Download WebP · ${formatSize(webp.size)}`;
+    }
+
     $("metaSource").textContent = source;
     $("metaSize").textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
-    $("metaFile").textContent = `PNG · ${Math.round(blob.size / 1024)} KB`;
 
     setState("done");
     status.textContent = {
