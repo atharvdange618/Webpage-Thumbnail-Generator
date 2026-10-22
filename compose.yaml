@@ -7,5 +7,5 @@ services:
     # Node as PID 1 ignores SIGTERM; tini forwards it so stop is instant
     init: true
     ports:
-      # 3000 is taken on the host
-      - "3100:3000"
+      # 3000 is taken on the host; loopback only so the LAN can't reach it
+      - "127.0.0.1:3100:3000"

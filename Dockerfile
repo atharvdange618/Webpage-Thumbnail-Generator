@@ -16,5 +16,8 @@ RUN npm ci --omit=dev
 
 COPY . .
 
+# Chromium runs with --no-sandbox, so keep it off root
+USER node
+
 EXPOSE 3000
 CMD ["node", "index.js"]
