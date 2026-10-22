@@ -1,21 +1,25 @@
-const sharp = require("sharp");
+import sharp from "sharp";
 
-/**
- * Generate a high-quality thumbnail.
- *
- * @param {Buffer} imageBuffer - Original image buffer.
- * @param {Object} options
- * @param {number} options.width - Target width in pixels.
- * @param {number} options.height - Target height in pixels.
- * @param {"jpeg"|"png"} [options.format="jpeg"] - Output format.
- * @param {number} [options.quality=90] - JPEG quality (1–100). PNG output is always lossless.
- * @param {number} [options.compressionLevel=9] - PNG zlib compression (0–9).
- * @param {boolean} [options.retainOrientation=true] - Preserve EXIF orientation.
- * @param {boolean} [options.retina=false] - Double dimensions for HiDPI.
- * @returns {Promise<Buffer>}
- */
-module.exports = async function makeThumbnail(
-  imageBuffer,
+export interface ThumbnailOptions {
+  /** Target width in pixels. */
+  width: number;
+  /** Target height in pixels. */
+  height: number;
+  /** Output format. */
+  format?: "jpeg" | "png";
+  /** JPEG quality (1–100). PNG output is always lossless. */
+  quality?: number;
+  /** PNG zlib compression (0–9). */
+  compressionLevel?: number;
+  /** Preserve EXIF orientation. */
+  retainOrientation?: boolean;
+  /** Double dimensions for HiDPI. */
+  retina?: boolean;
+}
+
+/** Generate a high-quality thumbnail. */
+export default async function makeThumbnail(
+  imageBuffer: Uint8Array,
   {
     width,
     height,
@@ -24,8 +28,8 @@ module.exports = async function makeThumbnail(
     compressionLevel = 9,
     retainOrientation = true,
     retina = false,
-  }
-) {
+  }: ThumbnailOptions
+): Promise<Buffer> {
   // Initialize pipeline
   let pipeline = sharp(imageBuffer);
 
@@ -62,4 +66,4 @@ module.exports = async function makeThumbnail(
 
   // Return processed buffer
   return pipeline.toBuffer();
-};
+}

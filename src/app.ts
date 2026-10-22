@@ -1,31 +1,33 @@
-const express = require("express");
-const chalk = require("chalk");
-const fetchOgImage = require("./utils/fetchOgImage");
-const captureScreenshot = require("./utils/captureScreenshot");
-const makeThumbnail = require("./utils/makeThumbnail");
-const path = require("path");
+import path from "node:path";
+import express from "express";
+import chalk from "chalk";
+import fetchOgImage from "./utils/fetchOgImage.ts";
+import captureScreenshot from "./utils/captureScreenshot.ts";
+import makeThumbnail from "./utils/makeThumbnail.ts";
+
+const errorMessage = (err: unknown): string => (err instanceof Error ? err.message : String(err));
 
 const app = express();
 
-app.use(express.static(path.join(__dirname, "public")));
-
-const port = 3000;
+app.use(express.static(path.join(import.meta.dirname, "..", "public")));
 
 app.get("/thumbnail", async (req, res) => {
   try {
     const url = req.query.url;
 
-    if (!url) {
+    // Also rejects ?url=a&url=b, which Express parses as an array
+    if (typeof url !== "string" || !url) {
       console.log(chalk.red("[ERROR] No URL provided"));
-      return res.status(400).send("Missing URL parameter");
+      res.status(400).send("Missing URL parameter");
+      return;
     }
 
     console.log(chalk.blueBright(`\n🌐 Generating thumbnail for: ${url}`));
 
     // source=screenshot skips the OG image, which can be stale; anything else tries OG first
     const live = req.query.source === "screenshot";
-    let imgUrl = live ? null : await fetchOgImage(url);
-    let imgBuffer;
+    let imgUrl = live ? undefined : await fetchOgImage(url);
+    let imgBuffer: Uint8Array | undefined;
 
     if (imgUrl) {
       console.log(chalk.green("✅ Open Graph image found: ") + imgUrl);
@@ -42,10 +44,10 @@ app.get("/thumbnail", async (req, res) => {
       } catch (err) {
         console.log(
           chalk.yellow(
-            `⚠️ Open Graph image unusable (${err.message}). Falling back to screenshot...`
+            `⚠️ Open Graph image unusable (${errorMessage(err)}). Falling back to screenshot...`
           )
         );
-        imgUrl = null;
+        imgUrl = undefined;
       }
     } else if (live) {
       console.log(chalk.yellow("📸 Live screenshot requested..."));
@@ -84,12 +86,4 @@ app.get("/thumbnail", async (req, res) => {
   }
 });
 
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
-
-app.listen(port, () =>
-  console.log(
-    chalk.magentaBright(`🚀 Server listening on http://localhost:${port}`)
-  )
-);
+export default app;

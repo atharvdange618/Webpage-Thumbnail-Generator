@@ -3,3 +3,4 @@ node_modules
 image.png
 *.log
 .env
+public/script.js

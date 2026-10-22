@@ -1,8 +1,7 @@
-// ESM-only since v13x; require(esm) exposes it on .default
-const chromium = require("@sparticuz/chromium-min").default;
-const puppeteer = require("puppeteer-core");
+import chromium from "@sparticuz/chromium-min";
+import puppeteer from "puppeteer-core";
 
-async function captureScreenshot(url) {
+export default async function captureScreenshot(url: string): Promise<Uint8Array> {
   // Set in Docker to use the system Chromium instead of the Lambda build
   const localPath = process.env.CHROMIUM_PATH;
   const executablePath =
@@ -30,5 +29,3 @@ async function captureScreenshot(url) {
     await browser.close();
   }
 }
-
-module.exports = captureScreenshot;

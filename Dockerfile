@@ -1,4 +1,4 @@
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 # System Chromium brings its own shared libs; the app uses it via CHROMIUM_PATH
 RUN apt-get update \
@@ -6,18 +6,24 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 ENV PUPPETEER_SKIP_DOWNLOAD=true \
-    CHROMIUM_PATH=/usr/bin/chromium \
-    NODE_ENV=production
+    CHROMIUM_PATH=/usr/bin/chromium
 
 WORKDIR /app
 
+# Dev deps are needed for the checks and the client build, then pruned
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 COPY . .
+
+# A type error stops the image from building
+RUN npm run typecheck && npm run build:client && npm prune --omit=dev
+
+ENV NODE_ENV=production
 
 # Chromium runs with --no-sandbox, so keep it off root
 USER node
 
 EXPOSE 3000
-CMD ["node", "index.js"]
+# Node 22.18+ runs .ts directly by stripping the types
+CMD ["node", "src/index.ts"]
