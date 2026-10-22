@@ -21,12 +21,13 @@ async function captureScreenshot(url) {
     defaultViewport: { width: 1920, height: 1080 },
   });
 
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: "networkidle2" });
-  const buffer = await page.screenshot({ fullPage: false });
-
-  await browser.close();
-  return buffer;
+  try {
+    const page = await browser.newPage();
+    await page.goto(url, { waitUntil: "networkidle2" });
+    return await page.screenshot({ fullPage: false });
+  } finally {
+    await browser.close();
+  }
 }
 
 module.exports = captureScreenshot;
