@@ -29,7 +29,7 @@ app.get("/thumbnail", async (req, res) => {
       console.log(chalk.green("✅ Open Graph image found: ") + imgUrl);
       console.log(chalk.yellow("📥 Fetching Open Graph image..."));
       const resp = await fetch(imgUrl);
-      imgBuffer = await resp.buffer();
+      imgBuffer = Buffer.from(await resp.arrayBuffer());
       console.log(chalk.green("🖼️ Open Graph image fetched successfully!"));
     } else {
       console.log(
