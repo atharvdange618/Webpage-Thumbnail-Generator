@@ -4,22 +4,76 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Thumbnail Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+    />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="container">
-      <h1>Webpage Thumbnail Generator</h1>
-      <div class="input-group">
-        <input type="url" id="urlInput" placeholder="Enter page URL…" />
-        <button id="generateBtn">Generate</button>
-      </div>
-      <div id="previewArea" class="preview hidden">
-        <h2>Preview</h2>
-        <img id="thumbImg" alt="Thumbnail preview" />
-        <a id="downloadLink" download="thumbnail.png">Download</a>
-      </div>
-      <div id="errorMsg" class="error hidden"></div>
-    </div>
+    <main class="shell">
+      <header class="masthead">
+        <p class="eyebrow">Link &rarr; Thumbnail</p>
+        <h1>Turn any page into a <em>clean thumbnail</em>.</h1>
+        <p class="lede">
+          Uses the page's Open Graph image when it has one. If it doesn't, it
+          takes a screenshot instead.
+        </p>
+      </header>
+
+      <form id="form" class="field" novalidate>
+        <label for="url" class="sr-only">Page URL</label>
+        <span class="prefix" aria-hidden="true">https://</span>
+        <input
+          id="url"
+          name="url"
+          type="text"
+          inputmode="url"
+          autocomplete="url"
+          autocapitalize="off"
+          spellcheck="false"
+          placeholder="example.com"
+          aria-describedby="status"
+          autofocus
+        />
+        <button id="submit" type="submit">Generate</button>
+      </form>
+      <p id="status" class="status" role="status" aria-live="polite"></p>
+
+      <section id="stage" class="stage" data-state="idle" aria-label="Result">
+        <div class="print">
+          <span class="crop tl"></span><span class="crop tr"></span>
+          <span class="crop bl"></span><span class="crop br"></span>
+          <img id="thumb" alt="" />
+          <div class="empty">
+            <span class="mono">1000 &times; 560</span>
+            <span>Your thumbnail shows up here</span>
+          </div>
+          <div class="working" aria-hidden="true">
+            <span class="mono" id="elapsed">0s</span>
+            <span id="phase">Looking for an Open Graph image</span>
+          </div>
+          <div class="failed">
+            <span id="errorText">Couldn't make a thumbnail.</span>
+            <button id="retry" type="button" class="btn">Try again</button>
+          </div>
+        </div>
+
+        <div class="details">
+          <dl class="meta">
+            <div><dt>Source</dt><dd id="metaSource">&mdash;</dd></div>
+            <div><dt>Size</dt><dd id="metaSize">&mdash;</dd></div>
+            <div><dt>File</dt><dd id="metaFile">&mdash;</dd></div>
+          </dl>
+          <div class="actions">
+            <button id="copy" type="button" class="btn" hidden>Copy image</button>
+            <a id="download" class="btn primary" download>Download PNG</a>
+          </div>
+        </div>
+      </section>
+    </main>
     <script src="script.js"></script>
   </body>
 </html>

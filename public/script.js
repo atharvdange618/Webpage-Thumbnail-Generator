@@ -1,99 +1,139 @@
-document.getElementById("generateBtn").addEventListener("click", async () => {
-  const urlInput = document.getElementById("urlInput");
-  const url = urlInput.value.trim();
-  const previewArea = document.getElementById("previewArea");
-  const errorMsg = document.getElementById("errorMsg");
-  const imgEl = document.getElementById("thumbImg");
-  const linkEl = document.getElementById("downloadLink");
-  const generateBtn = document.getElementById("generateBtn");
+const $ = (id) => document.getElementById(id);
 
-  // Reset UI
-  previewArea.classList.add("hidden");
-  errorMsg.textContent = "";
-  errorMsg.classList.add("hidden");
+const form = $("form");
+const input = $("url");
+const submitBtn = $("submit");
+const status = $("status");
+const stage = $("stage");
+const img = $("thumb");
+const download = $("download");
+const copyBtn = $("copy");
 
+let currentBlob = null;
+let currentUrl = null;
+let timer = null;
+
+// Clipboard image writes need ClipboardItem and a secure context (localhost counts)
+copyBtn.hidden = !(window.ClipboardItem && navigator.clipboard?.write);
+
+// Accept "example.com" as well as full URLs; returns null when it can't be a web page
+function normalize(raw) {
+  const value = raw.trim();
+  if (!value) return null;
+  try {
+    const url = new URL(/^https?:\/\//i.test(value) ? value : `https://${value}`);
+    const host = url.hostname;
+    if (host !== "localhost" && !host.includes(".")) return null;
+    return url;
+  } catch {
+    return null;
+  }
+}
+
+function setState(state) {
+  stage.dataset.state = state;
+  submitBtn.disabled = state === "loading";
+  submitBtn.textContent = state === "loading" ? "Working…" : "Generate";
+}
+
+function startTimer() {
+  const started = Date.now();
+  $("elapsed").textContent = "0s";
+  $("phase").textContent = "Looking for an Open Graph image";
+  timer = setInterval(() => {
+    const secs = Math.floor((Date.now() - started) / 1000);
+    $("elapsed").textContent = `${secs}s`;
+    // The server doesn't report progress; an OG fetch is usually done by now
+    if (secs === 3) $("phase").textContent = "Still working. Screenshots can take up to 20s";
+  }, 250);
+}
+
+function stopTimer() {
+  clearInterval(timer);
+  timer = null;
+}
+
+async function generate() {
+  const url = normalize(input.value);
   if (!url) {
-    errorMsg.textContent = "Please enter a valid URL.";
-    errorMsg.classList.remove("hidden");
+    input.setAttribute("aria-invalid", "true");
+    status.textContent = "That doesn't look like a web address. Try something like example.com.";
+    input.focus();
     return;
   }
+  input.removeAttribute("aria-invalid");
+  input.value = url.href.replace(/^https:\/\//, "");
 
-  // Revoke any existing object URL to free memory
-  if (imgEl.src && imgEl.src.startsWith("blob:")) {
-    URL.revokeObjectURL(imgEl.src);
-  }
-  if (linkEl.href && linkEl.href.startsWith("blob:")) {
-    URL.revokeObjectURL(linkEl.href);
-  }
-
-  // Extract domain for filename
-  let filename;
-  try {
-    const urlObj = new URL(url);
-    // Remove www. if present and get hostname without TLD
-    const domain = urlObj.hostname.replace(/^www\./, "").split(".")[0];
-    filename = `${domain}-thumbnail.png`;
-  } catch (e) {
-    // Fallback to default if URL parsing fails
-    filename = "thumbnail.png";
-  }
-
-  // Show loading state
-  generateBtn.disabled = true;
-  generateBtn.classList.add("loading");
-  generateBtn.innerHTML = '<span class="spinner"></span> Generating...';
+  setState("loading");
+  status.textContent = `Generating a thumbnail for ${url.hostname}…`;
+  startTimer();
 
   try {
-    const resp = await fetch(`/thumbnail?url=${encodeURIComponent(url)}`);
-    if (!resp.ok) throw new Error("Network response was not OK");
+    const resp = await fetch(`/thumbnail?url=${encodeURIComponent(url.href)}`);
+    if (!resp.ok) {
+      throw new Error(
+        resp.status === 400
+          ? "The server didn't accept that URL."
+          : "The page couldn't be loaded. Check the address, or the site may block bots."
+      );
+    }
 
-    // 1) Get a Blob from the HTTP response
     const blob = await resp.blob();
+    if (currentUrl) URL.revokeObjectURL(currentUrl);
+    currentBlob = blob;
+    currentUrl = URL.createObjectURL(blob);
 
-    // 2) Create an object URL for the Blob
-    const blobUrl = URL.createObjectURL(blob);
+    await new Promise((resolve, reject) => {
+      img.onload = resolve;
+      img.onerror = () => reject(new Error("The server sent back something that isn't an image."));
+      img.src = currentUrl;
+    });
 
-    // 3) Display in <img>
-    imgEl.src = blobUrl;
+    const source = resp.headers.get("X-Thumbnail-Source") === "og" ? "Open Graph image" : "Screenshot";
+    const host = url.hostname.replace(/^www\./, "");
+    img.alt = `Thumbnail of ${host}`;
+    download.href = currentUrl;
+    download.download = `${host.split(".")[0]}-thumbnail.png`;
+    $("metaSource").textContent = source;
+    $("metaSize").textContent = `${img.naturalWidth} × ${img.naturalHeight}`;
+    $("metaFile").textContent = `PNG · ${Math.round(blob.size / 1024)} KB`;
 
-    // 4) Set up download link with meaningful filename
-    linkEl.href = blobUrl;
-    linkEl.download = filename;
-
-    previewArea.classList.remove("hidden");
-
-    // Set up revocation of the blob URL when image is downloaded
-    linkEl.addEventListener(
-      "click",
-      () => {
-        // Wait a bit before revoking to ensure download starts
-        setTimeout(() => {
-          URL.revokeObjectURL(blobUrl);
-        }, 1000);
-      },
-      { once: true }
-    );
+    setState("done");
+    status.textContent =
+      source === "Screenshot" ? "Done. The page has no Open Graph image, so this is a screenshot." : "Done. Made from the page's Open Graph image.";
   } catch (err) {
     console.error(err);
-    errorMsg.textContent = "Failed to generate thumbnail.";
-    errorMsg.classList.remove("hidden");
+    $("errorText").textContent = err.message.startsWith("Failed to fetch")
+      ? "Couldn't reach the server. Is the container running?"
+      : err.message;
+    setState("error");
+    status.textContent = $("errorText").textContent;
   } finally {
-    // Reset button state
-    generateBtn.disabled = false;
-    generateBtn.classList.remove("loading");
-    generateBtn.textContent = "Generate";
+    stopTimer();
+  }
+}
+
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  generate();
+});
+
+$("retry").addEventListener("click", generate);
+
+input.addEventListener("input", () => {
+  if (input.hasAttribute("aria-invalid")) {
+    input.removeAttribute("aria-invalid");
+    status.textContent = "";
   }
 });
 
-// Clean up any object URLs when the page unloads
-window.addEventListener("beforeunload", () => {
-  const imgEl = document.getElementById("thumbImg");
-  const linkEl = document.getElementById("downloadLink");
-
-  if (imgEl.src && imgEl.src.startsWith("blob:")) {
-    URL.revokeObjectURL(imgEl.src);
+copyBtn.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.write([new ClipboardItem({ [currentBlob.type]: currentBlob })]);
+    copyBtn.textContent = "Copied";
+  } catch (err) {
+    console.error(err);
+    copyBtn.textContent = "Copy failed";
   }
-  if (linkEl.href && linkEl.href.startsWith("blob:")) {
-    URL.revokeObjectURL(linkEl.href);
-  }
+  setTimeout(() => (copyBtn.textContent = "Copy image"), 1600);
 });

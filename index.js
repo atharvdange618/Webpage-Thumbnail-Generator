@@ -52,7 +52,10 @@ app.get("/thumbnail", async (req, res) => {
     });
     console.log(chalk.green("✅ Thumbnail generated successfully!"));
 
-    res.type("image/jpeg").send(thumb);
+    res
+      .type("image/png")
+      .set("X-Thumbnail-Source", imgUrl ? "og" : "screenshot")
+      .send(thumb);
     console.log(chalk.cyan("🚀 Thumbnail sent to client!\n"));
   } catch (err) {
     console.error(chalk.red("❌ Error generating thumbnail:"), err);
