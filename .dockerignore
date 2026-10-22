@@ -1,6 +1,5 @@
 node_modules
 .git
-image.png
 *.log
 .env
 public/script.js
