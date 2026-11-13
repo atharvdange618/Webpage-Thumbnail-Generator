@@ -1,7 +1,7 @@
 {
   "name": "thumbnail-generator",
   "version": "1.0.0",
-  "description": "",
+  "description": "Turn any URL into a 1200x630 thumbnail, using the page's Open Graph image or a headless Chromium screenshot.",
   "main": "dist/index.js",
   "scripts": {
     "start": "node dist/index.js",
@@ -14,9 +14,24 @@
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "thumbnail",
+    "open-graph",
+    "og-image",
+    "screenshot",
+    "puppeteer",
+    "express",
+    "typescript"
+  ],
+  "author": "Atharv Dange",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/atharvdange618/Webpage-Thumbnail-Generator.git"
+  },
+  "bugs": {
+    "url": "https://github.com/atharvdange618/Webpage-Thumbnail-Generator/issues"
+  },
   "type": "module",
   "dependencies": {
     "chalk": "^4.1.2",
